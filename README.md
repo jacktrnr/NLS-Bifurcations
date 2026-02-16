@@ -18,6 +18,7 @@ Solutions are found by shooting from the origin with slope `beta = u'(0)` and ma
 | `potentials.jl` | Potential constructors with compact support on `[0, b]`. Dispatcher `make_potential(:type; b, V0, ...)` builds any type from a symbol. |
 | `plotting.jl` | All visualization: potential plots, mass-energy diagrams (L2/H1 vs E), solution profiles, spectral evolution, and stability diagrams. |
 | `save.jl` | JLD2 serialization for branch data and organized PNG export for plots. |
+| `dynamics.jl` | Split-step time evolution of a perturbed bound state. Produces a GIF of `|psi(x,t)|`. |
 
 ## Supported Potentials
 
@@ -38,10 +39,18 @@ Solutions are found by shooting from the origin with slope `beta = u'(0)` and ma
 3. Compute L2 and H1 norms along each branch.
 4. Generate plots and save data to JLD2.
 
-### Stage 2: Spectral Analysis (optional)
+### Stage 2: Spectral Analysis (optional, `run_spectral`)
 1. Discretize the linearized operators `L+` and `L-` on a finite-difference grid.
-2. Track the smallest eigenvalues along each branch.
+2. Track the smallest eigenvalues along a grid of 50 E values per branch.
 3. Classify stability via the Vakhitov-Kolokolov criterion: stable when `n(L+) = 1` and `n(L-) = 0`.
+
+### Stage 3: Time Dynamics (optional, `run_dynamics_flag`)
+1. Extract a bound state from the first non-empty branch.
+   - `dyn_use_endpoint = false`: use the branch point near `Estart` (beginning of the branch).
+   - `dyn_use_endpoint = true`: use the branch point whose E is closest to 0.
+2. Perturb: `psi(x,0) = psi_0(x) * (1 + epsilon)`.
+3. Evolve the time-dependent NLS via symmetric split-step with DST (Dirichlet BCs).
+4. Save an animated GIF of `|psi(x,t)|` with the unperturbed bound state shown for reference.
 
 ## Usage
 
@@ -54,7 +63,9 @@ Edit the `CONFIGURATION` block at the top of `run.jl` to change:
 - `potential_type` and parameters (`b`, `V0`, etc.)
 - Seed energies `Estart` and scanning resolution
 - Continuation step sizes and bounds
-- Whether to run spectral analysis (`run_spectral = true/false`)
+- `run_spectral = true/false` to toggle spectral analysis
+- `run_dynamics_flag = true/false` to toggle time dynamics
+- `dyn_use_endpoint` to choose which bound state to perturb
 
 ## Output Structure
 
@@ -66,6 +77,7 @@ results/<potential_type>/
   profiles/        Solution profiles (wide + zoomed near support)
   spectrum/        Eigenvalue evolution plots
   stability/       Stability diagrams (mass colored by stability)
+  dynamics/        GIF animations of perturbed bound state evolution
 ```
 
 ## Dependencies
@@ -73,6 +85,7 @@ results/<potential_type>/
 - [OrdinaryDiffEq.jl](https://github.com/SciML/OrdinaryDiffEq.jl) -- ODE integration (Tsit5)
 - [BifurcationKit.jl](https://github.com/bifurcationkit/BifurcationKit.jl) -- Pseudo-arclength continuation
 - [Arpack.jl](https://github.com/JuliaLinearAlgebra/Arpack.jl) -- Sparse eigenvalue problems
+- [FFTW.jl](https://github.com/JuliaMath/FFTW.jl) -- Discrete sine transform for split-step dynamics
 - [Plots.jl](https://github.com/JuliaPlots/Plots.jl) + [LaTeXStrings.jl](https://github.com/stevengj/LaTeXStrings.jl) -- Visualization
 - [JLD2.jl](https://github.com/JuliaIO/JLD2.jl) -- Data serialization
 - [Accessors.jl](https://github.com/JuliaObjects/Accessors.jl) -- Lens for BifurcationKit parameters

@@ -39,7 +39,7 @@
 #                   C^∞ and vanishes exactly at x = 0 and x = b.
 potential_type = :square # :smooth, :threestep, :gaussian, :step, :square, :square_bump
 b = 1.0                  # Support boundary: V(x) = 0 for x > b
-V0 = -2.4               # Potential depth/height (negative = attractive well)
+V0 = -1.0               # Potential depth/height (negative = attractive well)
 
 # Type-specific parameters (ignored if not relevant to chosen type):
 bump_amp_factor = 2.3    # :square_bump — bump amplitude = factor * |V0|
@@ -53,7 +53,7 @@ edge_height = 0.1       # :threestep — height of edge regions
 # Estart: initial energy guesses where we scan for solutions.
 #   Each E in this list gets a full β-scan. Use values where you
 #   expect bifurcations (usually just below the linear eigenvalue).
-Estart = [-0.5521]
+Estart = [-1.2]
 β_max = 10.0             # Maximum shooting slope to scan
 nβ = 800                 # Number of β gridpoints (higher = finer scan)
 N = 3000                 # ODE integration gridpoints on [0, b]
@@ -70,7 +70,7 @@ max_steps = 3000         # Maximum continuation steps per branch
 
 # --- Spectral analysis (Stage 2) ---
 # Set run_spectral = false to skip entirely (much faster).
-run_spectral = true
+run_spectral = false
 nev = 2                  # Number of eigenvalues to compute for L₊ and L₋
 spectral_skip = 1        # Compute spectrum every `skip` branch points (1 = all)
 Ngrid = 1000             # Finite-difference grid size for eigenvalue problem
@@ -80,6 +80,18 @@ Xmax_spec = 50.0         # Domain truncation for spectral computation
 save_data = true         # Save branch data to JLD2
 save_plots_flag = true   # Save all plots as PNGs
 results_dir = joinpath(@__DIR__, "results")
+
+# --- Time dynamics (Stage 3) ---
+# Set run_dynamics_flag = false to skip entirely.
+run_dynamics_flag = true
+dyn_use_endpoint = true  # false = use seed (Estart), true = use branch endpoint closest to E=0
+dyn_Xmax = 100.0          # Domain truncation for dynamics grid
+dyn_Ngrid = 2048         # Number of interior grid points (power of 2 recommended)
+dyn_Tmax = 50.0          # Total evolution time
+dyn_dt = 1e-3            # Time step
+dyn_ε = 0.05             # Perturbation amplitude: ψ(x,0) = ψ₀(x)*(1 + ε)
+dyn_save_every = 100      # Save a frame every this many time steps
+dyn_fps = 20             # GIF frames per second
 
 # --- Profile plot settings ---
 Xmax_profiles = 15.0     # Wide-view x-axis limit for profile plots
@@ -95,6 +107,7 @@ include("core.jl")
 include("potentials.jl")
 include("plotting.jl")
 include("save.jl")
+include("dynamics.jl")
 
 t_start = time()
 
@@ -293,6 +306,31 @@ if run_spectral
 else
     println("\nSpectral analysis skipped (set run_spectral = true to enable).")
     spectral_data = []
+end
+
+# ============================================
+# STAGE 3: Time Dynamics (optional)
+# ============================================
+
+if run_dynamics_flag
+    println("\n" * "="^70)
+    println("TIME DYNAMICS")
+    println("="^70)
+    println("  ε = $dyn_ε, Tmax = $dyn_Tmax, dt = $dyn_dt")
+    println("  Grid: $dyn_Ngrid points, Xmax = $dyn_Xmax")
+    println()
+
+    dyn_label = potential_label(potential_type; b=b, V0=V0)
+
+    run_dynamics_result = run_dynamics(seeds, branches, b, Vfun;
+        use_endpoint=dyn_use_endpoint,
+        Xmax=dyn_Xmax, Ngrid=dyn_Ngrid, N_ode=N,
+        Tmax=dyn_Tmax, dt=dyn_dt, ε=dyn_ε,
+        save_every=dyn_save_every, fps=dyn_fps,
+        results_dir=joinpath(results_dir, String(potential_type)),
+        label=dyn_label)
+else
+    println("\nTime dynamics skipped (set run_dynamics_flag = true to enable).")
 end
 
 # ============================================
