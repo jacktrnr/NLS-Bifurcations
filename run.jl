@@ -37,9 +37,9 @@
 #   :threestep    — Three-step: edge_height on [0,b/4] and [3b/4,b], V0 in middle.
 #   :smooth       — Compactly supported bump function: V0 * exp(-1/(1-(x/b)^2)).
 #                   C^∞ and vanishes exactly at x = 0 and x = b.
-potential_type = :square # :smooth, :threestep, :gaussian, :step, :square, :square_bump
+potential_type = :square_bump # :smooth, :threestep, :gaussian, :step, :square, :square_bump
 b = 1.0                  # Support boundary: V(x) = 0 for x > b
-V0 = -1.0               # Potential depth/height (negative = attractive well)
+V0 = -3.3 # Potential depth/height (negative = attractive well)
 
 # Type-specific parameters (ignored if not relevant to chosen type):
 bump_amp_factor = 2.3    # :square_bump — bump amplitude = factor * |V0|
@@ -89,8 +89,10 @@ dyn_Xmax = 100.0          # Domain truncation for dynamics grid
 dyn_Ngrid = 2048         # Number of interior grid points (power of 2 recommended)
 dyn_Tmax = 50.0          # Total evolution time
 dyn_dt = 1e-3            # Time step
-dyn_ε = 0.05             # Perturbation amplitude: ψ(x,0) = ψ₀(x)*(1 + ε)
-dyn_save_every = 100      # Save a frame every this many time steps
+dyn_ε_scale = 0.05       # Rescaling of bound state: (1 + ε_scale) * ψ₀
+dyn_ε_pert = 0.05        # Amplitude of derivative-of-Gaussian perturbation
+dyn_σ_pert = 1.0         # Width of the Gaussian in the perturbation
+dyn_save_every = 100     # Save a frame every this many time steps
 dyn_fps = 20             # GIF frames per second
 
 # --- Profile plot settings ---
@@ -316,7 +318,8 @@ if run_dynamics_flag
     println("\n" * "="^70)
     println("TIME DYNAMICS")
     println("="^70)
-    println("  ε = $dyn_ε, Tmax = $dyn_Tmax, dt = $dyn_dt")
+    println("  ε_scale = $dyn_ε_scale, ε_pert = $dyn_ε_pert, σ_pert = $dyn_σ_pert")
+    println("  Tmax = $dyn_Tmax, dt = $dyn_dt")
     println("  Grid: $dyn_Ngrid points, Xmax = $dyn_Xmax")
     println()
 
@@ -325,7 +328,8 @@ if run_dynamics_flag
     run_dynamics_result = run_dynamics(seeds, branches, b, Vfun;
         use_endpoint=dyn_use_endpoint,
         Xmax=dyn_Xmax, Ngrid=dyn_Ngrid, N_ode=N,
-        Tmax=dyn_Tmax, dt=dyn_dt, ε=dyn_ε,
+        Tmax=dyn_Tmax, dt=dyn_dt,
+        ε_scale=dyn_ε_scale, ε_pert=dyn_ε_pert, σ_pert=dyn_σ_pert,
         save_every=dyn_save_every, fps=dyn_fps,
         results_dir=joinpath(results_dir, String(potential_type)),
         label=dyn_label)

@@ -9,9 +9,13 @@
 # Uses a split-step method with the Discrete Sine Transform (DST)
 # to handle the kinetic operator with Dirichlet BCs at both ends.
 #
-# The initial condition is a bound state ψ₀(x) (from the shooting
-# solver) plus a small perturbation:
-#   ψ(x,0) = ψ₀(x) + ε * perturbation(x)
+# The initial condition is a bound state ψ₀(x) plus a perturbation:
+#   ψ(x,0) = (1 + ε₁) ψ₀(x) + ε₂ h(x)
+# where h(x) is a derivative-of-Gaussian with a tail correction
+# to satisfy h(0) = 0:
+#   g(x)  = exp(-(x - x_c)² / 2σ²)        (Gaussian centered at peak of ψ₀)
+#   g'(x) = -(x - x_c)/σ² · g(x)
+#   h(x)  = g'(x) - g'(0) · exp(-κx)       (κ = √(-E), soliton decay rate)
 #
 ###############################################
 
@@ -83,24 +87,29 @@ end
     run_dynamics(seeds, branches, b, Vfun;
                  use_endpoint=false,
                  Xmax=30.0, Ngrid=2048, N_ode=3000,
-                 Tmax=50.0, dt=1e-3, ε=0.05,
+                 Tmax=50.0, dt=1e-3,
+                 ε_scale=0.05, ε_pert=0.05, σ_pert=1.0,
                  save_every=50, fps=20,
                  results_dir="results", label="dynamics")
 
-Run time dynamics for a small perturbation of a bound state.
+Run time dynamics for a perturbed bound state.
 
 - `use_endpoint=false`: use the branch point near Estart (first point on branch).
 - `use_endpoint=true`:  use the branch endpoint whose E is closest to 0.
 
-1. Extracts the bound state (E, β) from the first non-empty branch.
-2. Constructs ψ₀(x) on a uniform grid via shooting + gluing.
-3. Perturbs: ψ(x,0) = ψ₀(x) * (1 + ε).
-4. Evolves with split-step and saves a GIF.
+Initial condition:
+    ψ(x,0) = (1 + ε_scale) ψ₀(x)  +  ε_pert · h(x)
+where h(x) is a derivative-of-Gaussian (centered at the peak of ψ₀, width σ_pert)
+with a tail correction to enforce h(0) = 0:
+    g(x)  = exp(-(x - x_c)² / 2σ²)
+    g'(x) = -(x - x_c)/σ² · g(x)
+    h(x)  = g'(x) - g'(0) · exp(-κx),   κ = √(-E)
 """
 function run_dynamics(seeds, branches, b, Vfun;
                       use_endpoint=false,
                       Xmax=30.0, Ngrid=2048, N_ode=3000,
-                      Tmax=50.0, dt=1e-3, ε=0.05,
+                      Tmax=50.0, dt=1e-3,
+                      ε_scale=0.05, ε_pert=0.05, σ_pert=1.0,
                       save_every=50, fps=20,
                       results_dir="results", label="dynamics")
 
@@ -154,13 +163,39 @@ function run_dynamics(seeds, branches, b, Vfun;
     ψ_bound = linear_interp(xfull, ψfull, x_grid)
     Vx = [Vfun(xi) for xi in x_grid]
 
+    # --- Build perturbation h(x): derivative-of-Gaussian + tail correction ---
+    # Center the Gaussian at the peak of |ψ₀|
+    _, i_peak = findmax(abs.(ψ_bound))
+    x_c = x_grid[i_peak]
+    σ = σ_pert
+    κv = sqrt(-E0)   # soliton decay rate
+
+    # g'(x) = -(x - x_c)/σ² · exp(-(x - x_c)²/(2σ²))
+    gprime = [-(xi - x_c) / σ^2 * exp(-(xi - x_c)^2 / (2σ^2)) for xi in x_grid]
+    gprime_0 = x_c / σ^2 * exp(-x_c^2 / (2σ^2))   # = -g'(0) evaluated analytically
+
+    # h(x) = g'(x) - g'(0) · exp(-κx)   so that h(0) = 0
+    h_pert = [gprime[j] - (-gprime_0) * exp(-κv * x_grid[j]) for j in 1:Ngrid]
+    # Note: g'(0) = -gprime_0 since gprime = -(x-x_c)/σ² · g  →  at x=0: -(-x_c)/σ² · g(0) = x_c/σ² · g(0)
+    # Correction: g'(0) = gprime evaluated at x=0, but x_grid starts at dx, not 0.
+    # Use the analytic value: g'(0) = x_c/σ² · exp(-x_c²/(2σ²))
+    gprime_at_0 = x_c / σ^2 * exp(-x_c^2 / (2σ^2))
+    h_pert = [gprime[j] - gprime_at_0 * exp(-κv * x_grid[j]) for j in 1:Ngrid]
+
+    # Normalize h so that ε_pert controls the amplitude relative to ψ₀
+    h_max = maximum(abs, h_pert)
+    if h_max > 0
+        h_pert .*= maximum(abs, ψ_bound) / h_max
+    end
+
     # --- Perturb ---
-    ψ_init = ComplexF64.(ψ_bound .* (1.0 + ε))
+    ψ_init = ComplexF64.((1.0 + ε_scale) .* ψ_bound .+ ε_pert .* h_pert)
 
     N_mass0 = dx * sum(abs2, ψ_init)
     println("  Grid: $Ngrid interior points, dx = $(round(dx, digits=5))")
     println("  Tmax = $Tmax, dt = $dt, $(round(Int, Tmax/dt)) steps")
-    println("  Perturbation: ε = $ε")
+    println("  Perturbation: ε_scale = $ε_scale, ε_pert = $ε_pert, σ_pert = $σ_pert")
+    println("  Gaussian peak at x_c = $(round(x_c, digits=3)), κ = $(round(κv, digits=5))")
     @printf("  Initial mass: %.6f\n", N_mass0)
 
     # --- Evolve ---
