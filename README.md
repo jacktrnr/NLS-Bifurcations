@@ -45,6 +45,9 @@ Solutions are found by shooting from the origin with slope `beta = u'(0)` and ma
 3. Classify stability via the Vakhitov-Kolokolov criterion: stable when `n(L+) = 1` and `n(L-) = 0`.
 
 ### Stage 3: Time Dynamics (optional, `run_dynamics_flag`)
+```
+i \partial_t \Psi = - \partial_x^2 \Psi + V(x) \Psi - |\Psi|^2 \Psi
+```
 1. Extract a bound state from the first non-empty branch.
    - `dyn_use_endpoint = false`: use the branch point near `Estart` (beginning of the branch).
    - `dyn_use_endpoint = true`: use the branch point whose E is closest to 0.
