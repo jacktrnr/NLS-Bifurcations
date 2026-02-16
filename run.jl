@@ -70,10 +70,10 @@ max_steps = 3000         # Maximum continuation steps per branch
 
 # --- Spectral analysis (Stage 2) ---
 # Set run_spectral = false to skip entirely (much faster).
-run_spectral = false
+run_spectral = true
 nev = 2                  # Number of eigenvalues to compute for L₊ and L₋
 spectral_skip = 1        # Compute spectrum every `skip` branch points (1 = all)
-Ngrid = 4000             # Finite-difference grid size for eigenvalue problem
+Ngrid = 1000             # Finite-difference grid size for eigenvalue problem
 Xmax_spec = 50.0         # Domain truncation for spectral computation
 
 # --- Output ---
@@ -244,7 +244,7 @@ if run_spectral
     println("SPECTRAL ANALYSIS")
     println("="^70)
     println("  nev = $nev, Ngrid = $Ngrid, Xmax = $Xmax_spec")
-    println("  skip = $spectral_skip")
+    println("  n_grid = 50 (E values for spectral tracking)")
     println()
 
     spectral_data = []
@@ -258,7 +258,7 @@ if run_spectral
 
         spec = track_spectrum_branch(br, b, Vfun;
             nev=nev,
-            skip=max(1, spectral_skip),
+            n_grid=50,
             Ngrid=Ngrid,
             Xmax=Xmax_spec)
 

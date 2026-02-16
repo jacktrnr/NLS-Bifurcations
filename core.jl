@@ -512,17 +512,33 @@ function compute_Lpm_eigenfunctions(b, E, Vfun, β;
              λ_minus=Fm.values[idx_m], ϕ_minus=Fm.vectors[:, idx_m])
 end
 
-"""Track spectrum along a branch"""
+"""Track spectrum along a branch on a grid of `n_grid` E values."""
 function track_spectrum_branch(branch, b, Vfun;
                                nev=2,
-                               skip=1,
+                               n_grid=50,
                                Ngrid=12000,
                                Xmax=150.0)
 
     isempty(branch.branch) &&
         return (; Es=Float64[], evals_plus=zeros(0,0), evals_minus=zeros(0,0))
 
-    indices = sort(unique([1; 1:skip:length(branch.branch); length(branch.branch)]))
+    # Build a uniform grid of E values spanning the branch, then pick the
+    # nearest branch point for each.  Always include the first and last
+    # branch points (these are the "endpoints of the E data").
+    all_Es = [sol.param for sol in branch.branch]
+    E_lo, E_hi = extrema(all_Es)
+
+    E_grid = range(E_lo, E_hi; length=max(n_grid, 2))
+
+    # For each grid E, find the branch index with the closest E value
+    indices = Set{Int}()
+    push!(indices, 1)                        # first branch point
+    push!(indices, length(branch.branch))    # last branch point
+    for Eg in E_grid
+        _, idx = findmin(abs.(all_Es .- Eg))
+        push!(indices, idx)
+    end
+    indices = sort(collect(indices))
     sols = [branch.branch[i] for i in indices]
 
     Es = Float64[]
