@@ -1,0 +1,26 @@
+# LaTeX source and build artifacts
+*.tex
+*.pdf
+*.aux
+*.log
+*.nav
+*.snm
+*.out
+*.toc
+*.vrb
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# Generated results (data, plots, animations)
+results/
+*.jld2
+*.png
+*.gif
+*.csv
+
+# Julia
+Manifest.toml
+
+# Claude
+.claude/
