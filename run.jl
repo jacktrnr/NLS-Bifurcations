@@ -107,6 +107,7 @@ using Printf
 
 include("core.jl")
 include("potentials.jl")
+include("resonances.jl")
 include("plotting.jl")
 include("save.jl")
 include("dynamics.jl")

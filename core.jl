@@ -13,6 +13,7 @@
 
 using LinearAlgebra, SparseArrays, Arpack
 using OrdinaryDiffEq
+using OrdinaryDiffEq.SciMLBase: ReturnCode
 using BifurcationKit
 using Accessors: @optic
 
@@ -52,7 +53,7 @@ function shoot_from_origin(b, E, Vfun, β; N=2000)
     sol = solve(prob, Tsit5(); reltol=1e-10, abstol=1e-12,
                 saveat=range(0.0, b; length=N+1))
 
-    if sol.retcode != :Success
+    if sol.retcode != ReturnCode.Success
         return Float64[], Float64[], Float64[]
     end
 
